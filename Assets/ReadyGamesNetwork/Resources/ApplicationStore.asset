@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 164026f55f87b4a4b9395d7d17454e48, type: 3}
+  m_Name: ApplicationStore
+  m_EditorClassIdentifier: 
+  RGNProjectId: d5d392dbd9c592cedbd2c8ced9ddd8c8d9cfc8
+  RGNApiKey: 8dde8fdfda8ededf8a8e8bdf848d88de89de8fdd8cd98eda8585de898d85de8a858dd985dede8a8add8dde84da8f898d8bd9da8988858fdd8b8a8adadedf898b
+  iosAppID: 
+  appLinkPrefix: 
+  RGNEnvironment: 1
+  usingEmulator: 0
+  emulatorServerIp: 127.0.0.1
+  firestorePort: :8080
+  functionsPort: :5001
+  googleSignInWebClientIdAndroid: 868757936873-80tc50r1qh847mm96df5187dvp3qpf4v.apps.googleusercontent.com
+  googleSignInReverseClientIdAndroid: com.googleusercontent.apps.868757936873-80tc50r1qh847mm96df5187dvp3qpf4v
+  googleSignInWebClientIdiOS: 819237445428-9aj7r3rldjbnuf8lc73h9cimmsm4p79q.apps.googleusercontent.com
+  googleSignInReverseClientIdiOS: com.googleusercontent.apps.819237445428-9aj7r3rldjbnuf8lc73h9cimmsm4p79q
+  firebaseAssociatedDomain: 
+  RGNMasterApiKey: AIzaSyAialkqbyW92TNdKtpEwkr4Q5s5Rr2hE20
+  RGNMasterAndroidAppID: 1:381959942413:android:26dbcfb0e43a7dafa60044
+  RGNMasterIOSAppID: 1:381959942413:ios:7d995941a68d54c7a60044
+  RGNMasterProjectId: readymaster-2b268
+  RGNStorageURL: gs://readymaster-2b268.appspot.com
+  RGNFriendInviteMessage: 
+  RGNMasterMessageSenderId: 381959942413
+  RGNMasterStorageBucket: readymaster-2b268
+  RGNMasterDatabaseUrl: https://readymaster-2b268.firebaseio.com/
