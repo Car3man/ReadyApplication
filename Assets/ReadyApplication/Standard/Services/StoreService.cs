@@ -79,11 +79,9 @@ namespace ReadyApplication.Standard
 
         public IFluentAction<List<StoreOffer>> GetStoreOffersByIds(string id, int limit = default, long startAfter = default, bool ignoreTimestamp = true,
 	        CancellationToken cancellationToken = default)
-        {
-	        throw new System.NotImplementedException();
-        }
+			=> _storeOfferRepository.GetByIds(id, limit, startAfter, ignoreTimestamp, cancellationToken);
 
-        public IFluentAction<List<StoreOffer>> GetStoreOffersByIds(List<string> ids, int limit = default, long startAfter = default, bool ignoreTimestamp = true, CancellationToken cancellationToken = default)
+		public IFluentAction<List<StoreOffer>> GetStoreOffersByIds(List<string> ids, int limit = default, long startAfter = default, bool ignoreTimestamp = true, CancellationToken cancellationToken = default)
             => _storeOfferRepository.GetByIds(ids, limit, startAfter, ignoreTimestamp, cancellationToken);
 
         public IFluentAction<List<StoreOffer>> GetStoreOffersByTimestamp(string appId, long timestamp, CancellationToken cancellationToken = default)
