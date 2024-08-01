@@ -28,8 +28,18 @@ namespace ReadyApplication.Core
 #endif
             return component.GetAsyncDestroyTrigger().CancellationToken;
         }
-        /// <summary>This CancellationToken is canceled when the App is quiting.</summary>
-        public static CancellationToken GetAppQuitCancellationToken(this MonoBehaviour monoBehaviour)
+		/// <summary>This CancellationToken is canceled when the MonoBehaviour will be disabled.</summary>
+		public static CancellationToken GetDisableCancellationToken(this GameObject gameObject)
+        {
+	        return gameObject.GetAsyncDisableTrigger().CancellationToken;
+        }
+		/// <summary>This CancellationToken is canceled when the MonoBehaviour will be disabled.</summary>
+		public static CancellationToken GetDisableCancellationToken(this Component component)
+        {
+	        return component.GetAsyncDisableTrigger().CancellationToken;
+        }
+		/// <summary>This CancellationToken is canceled when the App is quiting.</summary>
+		public static CancellationToken GetAppQuitCancellationToken(this MonoBehaviour monoBehaviour)
         {
 	        return GetAppQuitCancellationToken();
         }
@@ -63,7 +73,15 @@ namespace ReadyApplication.Core
         {
             return component.gameObject.GetAsyncDestroyTrigger();
         }
-        public static AsyncAppQuitTrigger GetAsyncAppQuitTrigger()
+        public static AsyncDisableTrigger GetAsyncDisableTrigger(this GameObject gameObject)
+        {
+	        return GetOrAddComponent<AsyncDisableTrigger>(gameObject);
+        }
+        public static AsyncDisableTrigger GetAsyncDisableTrigger(this Component component)
+        {
+	        return component.gameObject.GetAsyncDisableTrigger();
+        }
+		public static AsyncAppQuitTrigger GetAsyncAppQuitTrigger()
         {
 	        var appQuitTrigger = Object.FindFirstObjectByType<AsyncAppQuitTrigger>();
 	        if (appQuitTrigger == null)
@@ -111,6 +129,26 @@ namespace ReadyApplication.Core
         }
     }
     [DisallowMultipleComponent]
+    public sealed class AsyncDisableTrigger : MonoBehaviour
+    {
+	    private CancellationTokenSource _cancellationTokenSource;
+
+	    public CancellationToken CancellationToken
+	    {
+		    get
+		    {
+			    _cancellationTokenSource ??= new CancellationTokenSource();
+			    return _cancellationTokenSource.Token;
+		    }
+	    }
+	    private void OnDisable()
+	    {
+		    _cancellationTokenSource?.Cancel();
+		    _cancellationTokenSource?.Dispose();
+		    _cancellationTokenSource = null;
+	    }
+    }
+	[DisallowMultipleComponent]
     public sealed class AsyncAppQuitTrigger : MonoBehaviour
     {
 	    private CancellationTokenSource _cancellationTokenSource;

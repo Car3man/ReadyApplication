@@ -11,6 +11,7 @@ namespace ReadyApplication.Core
     
     public interface IFluentAction
     {
+        // TODO: Timeout policy
         IFluentAction Retry(int maxAttempts = 3, int minBackoff = 1000);
         IFluentAction RetryWhen<TException>() where TException : Exception;
         IFluentAction RetryWhen<TException>(Func<TException, bool> selector) where TException : Exception;
@@ -20,14 +21,17 @@ namespace ReadyApplication.Core
         IFluentAction FallbackWhen<TException>() where TException : Exception;
         IFluentAction FallbackWhen<TException>(Func<TException, bool> selector) where TException : Exception;
         IFluentAction NoFallback();
-        IFluentAction OnComplete(Action completeAction);
-        Task ExecuteAsync();
+        IFluentAction OnStart(Action startAction);
+		IFluentAction OnComplete(Action completeAction);
+		IFluentAction OnError(Action<Exception> errorAction);
+		Task ExecuteAsync();
         AwaiterFluentAction GetAwaiter();
     }
     
     public interface IFluentAction<TResult>
     {
-        IFluentAction<TResult> Retry(int maxAttempts = 3, int minBackoff = 1000);
+	    // TODO: Timeout policy
+		IFluentAction<TResult> Retry(int maxAttempts = 3, int minBackoff = 1000);
         IFluentAction<TResult> RetryWhen<TException>() where TException : Exception;
         IFluentAction<TResult> RetryWhen<TException>(Func<TException, bool> selector) where TException : Exception;
         IFluentAction<TResult> NoRetry();
@@ -35,13 +39,15 @@ namespace ReadyApplication.Core
         IFluentAction<TResult> FallbackWhen<TException>() where TException : Exception;
         IFluentAction<TResult> FallbackWhen<TException>(Func<TException, bool> selector) where TException : Exception;
         IFluentAction<TResult> NoFallback();
-        IFluentAction<TResult> OnComplete(Action<TResult> completeAction);
         IFluentAction<TResult> Cache(GetCachedValue<TResult> getCachedValue, SetCachedValue<TResult> setCachedValue, TimeSpan ttl);
         IFluentAction<TResult> Cache(string key, ICache cache, TimeSpan ttl);
         IFluentAction<TResult> SetCacheTtl(TimeSpan ttl);
         IFluentAction<TResult> Fresh();
         IFluentAction<TResult> RefreshIfInCache(Action<TResult> freshResult, CancellationToken cancellationToken = default);
         IFluentAction<TResult> NoCache();
+        IFluentAction<TResult> OnStart(Action startAction);
+        IFluentAction<TResult> OnComplete(Action<TResult> completeAction);
+        IFluentAction<TResult> OnError(Action<Exception> errorAction);
         Task<TResult> ExecuteAsync();
         AwaiterFluentAction<TResult> GetAwaiter();
     }
@@ -56,7 +62,10 @@ namespace ReadyApplication.Core
         /* Fallback options */
         private bool _fallbackEnabled;
         private List<Func<Exception, bool>> _fallbackWhenSelectors;
-        
+        /* Actions */
+        private readonly List<Action> _startActions = new();
+        private readonly List<Action<Exception>> _errorActions = new();
+
         protected FluentActionBase RetryInternal(int maxAttempts, int minBackoff)
         {
             _retryEnabled = true;
@@ -108,8 +117,25 @@ namespace ReadyApplication.Core
             _fallbackWhenSelectors = null;
             return this;
         }
-        
-        protected async Task ExecuteInternalAsync(Func<Task> actionFunc, Func<Task> fallbackFunc)
+
+        protected FluentActionBase OnStartInternal(Action startAction)
+		{
+			_startActions.Add(startAction);
+            return this;
+		}
+
+        protected FluentActionBase OnErrorInternal(Action<Exception> errorAction)
+        {
+	        _errorActions.Add(errorAction);
+	        return this;
+        }
+
+        protected void OnExecutionStartInternal()
+		{
+			_startActions.ForEach(action => action?.Invoke());
+		}
+
+		protected async Task ExecuteInternalAsync(Func<Task> actionFunc, Func<Task> fallbackFunc)
         {
             await ExecuteInternalAsync<object>(
                 async () =>
@@ -125,22 +151,27 @@ namespace ReadyApplication.Core
             );
         }
 
-        protected async Task<T> ExecuteInternalAsync<T>(Func<Task<T>> actionFunc, Func<Task<T>> fallbackFunc)
+        protected async Task<(bool, T)> ExecuteInternalAsync<T>(Func<Task<T>> actionFunc, Func<Task<T>> fallbackFunc)
         {
             try
             {
-                return await ExecuteWithRetriesAsync(actionFunc);
+                return (true, await ExecuteWithRetriesAsync(actionFunc));
             }
             catch (Exception exception)
             {
                 bool fallbackFilterFailed = _fallbackWhenSelectors is { Count: > 0 } && !_fallbackWhenSelectors.Any(selector => selector(exception));
-                
-                if (!_fallbackEnabled || fallbackFilterFailed)
+                if (_fallbackEnabled && !fallbackFilterFailed)
                 {
-                    throw;
-                }
+					return (true, await fallbackFunc());
+				}
 
-                return await fallbackFunc();
+                if (_errorActions.Count > 0)
+				{
+	                _errorActions.ForEach(action => action?.Invoke(exception));
+	                return (false, default);
+				}
+
+				throw;
             }
         }
 
@@ -182,7 +213,7 @@ namespace ReadyApplication.Core
         public FluentAction(Func<Task> actionFunc)
         {
             _actionFunc = actionFunc;
-            _completeActions = new List<Action>();
+			_completeActions = new List<Action>();
         }
         
         public IFluentAction Retry(int maxAttempts, int minBackoff = 1000)
@@ -218,15 +249,26 @@ namespace ReadyApplication.Core
             return (IFluentAction)NoFallbackInternal();
         }
 
+        public IFluentAction OnStart(Action startAction)
+		{
+			return (IFluentAction)OnStartInternal(startAction);
+		}
+
         public IFluentAction OnComplete(Action completeAction)
         {
             _completeActions.Add(completeAction);
             return this;
         }
 
-        public async Task ExecuteAsync()
+        public IFluentAction OnError(Action<Exception> errorAction)
         {
-            await ExecuteInternalAsync(_actionFunc, _fallbackFunc);
+	        return (IFluentAction)OnErrorInternal(errorAction);
+        }
+
+		public async Task ExecuteAsync()
+        {
+	        OnExecutionStartInternal();
+			await ExecuteInternalAsync(_actionFunc, _fallbackFunc);
             _completeActions?.ForEach(action => action?.Invoke());
         }
 
@@ -287,13 +329,7 @@ namespace ReadyApplication.Core
             _fallbackFunc = null;
             return (IFluentAction<TResult>)NoFallbackInternal();
         }
-        
-        public IFluentAction<TResult> OnComplete(Action<TResult> completeAction)
-        {
-            _completeActions.Add(completeAction);
-            return this;
-        }
-        
+
         public IFluentAction<TResult> Cache(GetCachedValue<TResult> getCachedValue, SetCachedValue<TResult> setCachedValue, TimeSpan ttl)
         {
             _cacheEnabled = true;
@@ -302,7 +338,7 @@ namespace ReadyApplication.Core
             _cacheTtl = ttl;
             return this;
         }
-        
+
         public IFluentAction<TResult> Cache(string key, ICache cache, TimeSpan ttl)
         {
             return Cache(
@@ -311,13 +347,13 @@ namespace ReadyApplication.Core
                 ttl
             );
         }
-        
+
         public IFluentAction<TResult> SetCacheTtl(TimeSpan ttl)
         {
             _cacheTtl = ttl;
             return this;
         }
-        
+
         public IFluentAction<TResult> Fresh()
         {
             _cacheFreshRequest = true;
@@ -330,8 +366,8 @@ namespace ReadyApplication.Core
             _refreshIfCacheCancellationToken = cancellationToken;
 			return this;
 		}
-        
-        public IFluentAction<TResult> NoCache()
+
+		public IFluentAction<TResult> NoCache()
         {
             _cacheEnabled = false;
             _cacheTtl = TimeSpan.Zero;
@@ -341,28 +377,51 @@ namespace ReadyApplication.Core
             return this;
         }
 
-        public virtual async Task<TResult> ExecuteAsync()
+        public IFluentAction<TResult> OnStart(Action startAction)
         {
+	        return (IFluentAction<TResult>)OnStartInternal(startAction);
+        }
+
+		public IFluentAction<TResult> OnComplete(Action<TResult> completeAction)
+        {
+	        _completeActions.Add(completeAction);
+	        return this;
+        }
+
+        public IFluentAction<TResult> OnError(Action<Exception> errorAction)
+        {
+	        return (IFluentAction<TResult>)OnErrorInternal(errorAction);
+		}
+
+        public async Task<TResult> ExecuteAsync()
+        {
+	        OnExecutionStartInternal();
+
             if (_cacheEnabled && !_cacheFreshRequest && _cacheGetValueFunc(out TResult cachedValue))
             {
 	            if (_refreshIfCacheAction != null)
 	            {
 		            _ = Task.Run(async () =>
 		            {
-			            TResult freshResult = await ExecuteInternalAsync(_actionFunc, _fallbackFunc);
+			            (bool freshRequestSuccess, TResult freshResult) = await ExecuteInternalAsync(_actionFunc, _fallbackFunc);
                         UnityMainThreadDispatcher.Enqueue(() =>
                         {
-	                        _cacheSetValueFunc(freshResult, _cacheTtl);
+	                        if (freshRequestSuccess)
+	                        {
+		                        _cacheSetValueFunc(freshResult, _cacheTtl);
+	                        }
 	                        _refreshIfCacheAction(freshResult);
 						});
 		            }, _refreshIfCacheCancellationToken);
 	            }
+
+	            _completeActions?.ForEach(action => action?.Invoke(cachedValue));
 				return cachedValue;
             }
             
-            TResult executionResult = await ExecuteInternalAsync(_actionFunc, _fallbackFunc);
+            (bool executionSuccess, TResult executionResult) = await ExecuteInternalAsync(_actionFunc, _fallbackFunc);
             
-            if (_cacheEnabled)
+            if (executionSuccess && _cacheEnabled)
             {
                 _cacheSetValueFunc(executionResult, _cacheTtl);
             }

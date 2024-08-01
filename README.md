@@ -18,13 +18,15 @@ IFluentAction<TResult> Fallback(Func<Task<TResult>> fallbackFunc);
 IFluentAction<TResult> FallbackWhen<TException>() where TException : Exception;
 IFluentAction<TResult> FallbackWhen<TException>(Func<TException, bool> selector) where TException : Exception;
 IFluentAction<TResult> NoFallback();
-IFluentAction<TResult> OnComplete(Action<TResult> completeAction);
 IFluentAction<TResult> Cache(GetCachedValue<TResult> getCachedValue, SetCachedValue<TResult> setCachedValue, TimeSpan ttl);
 IFluentAction<TResult> Cache(string key, ICache cache, TimeSpan ttl);
 IFluentAction<TResult> SetCacheTtl(TimeSpan ttl);
 IFluentAction<TResult> Fresh();
 IFluentAction<TResult> RefreshIfInCache(Action<TResult> freshResult, CancellationToken cancellationToken = default);
 IFluentAction<TResult> NoCache();
+IFluentAction<TResult> OnStart(Action startAction);
+IFluentAction<TResult> OnComplete(Action<TResult> completeAction);
+IFluentAction<TResult> OnError(Action<Exception> errorAction);
 ```
 
 - **Retry Policy**: Configure retry attempts and backoff strategies for resilient operations.
@@ -53,18 +55,70 @@ The toolkit ensures that caches related to specific operations are automatically
 ## Example Usage
 
 ```csharp
-private async void FetchAppAchievements()
+private void Awake()
 {
-    List<AchievementData> achievements = await _achievementService
-        .GetAchievementsForThisApp(5, cancellationToken: this.GetDestroyCancellationToken())
-        .Retry() // Specify retry policy (by default 3 attempts with 1000ms backoff)
-        .RefreshIfInCache(OnAchievementsFetch, this.GetAppQuitCancellationToken()); // Request fresh data if result is from cache
-    OnAchievementsFetch(achievements);
+    _achievementService = SampleReadyApp.I.GetService<IAchievementService>();
+
+    closeButton.onClick.AddListener(OnCloseButtonClick);
+    pullToRefresh.RefreshRequested += () => FetchItems(forceFresh: true).ExecuteAsync();
+
+    itemTemplate.gameObject.SetActive(false);
 }
 
-private void OnAchievementsFetch(List<AchievementData> achievements)
+private void OnEnable()
 {
-    Debug.Log("Fetched achievements: " + achievements.Count);
+	loadingOverlay.SetActive(false);
+	noDataFallback.SetActive(false);
+	errorFallback.gameObject.SetActive(false);
+
+	FetchItems().ExecuteAsync(); // or await FetchItems();
+}
+
+private IFluentAction<List<AchievementData>> FetchItems(bool forceFresh = false)
+{
+	var action = _achievementService
+		.GetAchievementsForThisApp(20, cancellationToken: this.GetDisableCancellationToken())
+		.Retry() // Specify retry policy using default settings
+		.RefreshIfInCache(OnFetchSuccess, this.GetAppQuitCancellationToken()) // Refresh query in the background if a result there is in the cache
+		.OnStart(OnFetchStart)
+		.OnComplete(OnFetchSuccess)
+		.OnError(OnFetchError); // Intercept an exception to handle this case 
+
+	if (forceFresh)
+	{
+		action = action.Fresh();
+	}
+	
+	return action;
+}
+
+private void OnFetchStart()
+{
+	loadingOverlay.SetActive(true);
+	noDataFallback.SetActive(false);
+	errorFallback.gameObject.SetActive(false);
+}
+
+private void OnFetchSuccess(List<AchievementData> achievements)
+{
+	loadingOverlay.SetActive(false);
+
+	if (achievements.Count == 0)
+	{
+		noDataFallback.SetActive(true);
+	}
+	else
+	{
+		Populate(achievements);
+	}
+}
+
+private void OnFetchError(System.Exception exception)
+{
+	loadingOverlay.SetActive(false);
+	errorFallback.gameObject.SetActive(true);
+	errorFallback.text = $"Oops! Something went wrong. Please try again.\n\n<size=15>Error: {exception.Message}";
+	Clear();
 }
 ```
 
