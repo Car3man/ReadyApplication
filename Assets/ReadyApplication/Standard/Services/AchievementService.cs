@@ -22,8 +22,8 @@ namespace ReadyApplication.Standard
         IFluentAction<List<UserAchievement>> GetUserAchievements(int limit, long startAfter = long.MaxValue, bool withHistory = false, CancellationToken cancellationToken = default);
         IFluentAction<List<AchievementData>> GetAchievementsByIds(string id, CancellationToken cancellationToken = default);
         IFluentAction<List<AchievementData>> GetAchievementsByIds(List<string> ids, CancellationToken cancellationToken = default);
-        IFluentAction<List<AchievementData>> GetAchievementsByTags(string tag, int limit, string startAfter = "", CancellationToken cancellationToken = default);
-        IFluentAction<List<AchievementData>> GetAchievementsByTags(List<string> tags, int limit, string startAfter = "", CancellationToken cancellationToken = default);
+        IFluentAction<List<AchievementData>> GetAchievementsByTags(string tag, int limit, long startAfter = default, CancellationToken cancellationToken = default);
+        IFluentAction<List<AchievementData>> GetAchievementsByTags(List<string> tags, int limit, long startAfter = default, CancellationToken cancellationToken = default);
         IFluentAction<List<AchievementData>> GetAchievementsByAppIds(string appId, int limit, string startAfter = "", CancellationToken cancellationToken = default);
         IFluentAction<List<AchievementData>> GetAchievementsByAppIds(List<string> appIds, int limit, string startAfter = "", CancellationToken cancellationToken = default);
         IFluentAction<List<AchievementData>> GetAchievementsForThisApp(int limit, string startAfter = "", CancellationToken cancellationToken = default);
@@ -117,11 +117,11 @@ namespace ReadyApplication.Standard
 		public IFluentAction<List<AchievementData>> GetAchievementsByIds(List<string> ids, CancellationToken cancellationToken = default)
             => _achievementRepository.GetByIds(ids, cancellationToken);
 
-		public IFluentAction<List<AchievementData>> GetAchievementsByTags(string tag, int limit, string startAfter = "",
+		public IFluentAction<List<AchievementData>> GetAchievementsByTags(string tag, int limit, long startAfter = default,
 			CancellationToken cancellationToken = default)
 			=> _achievementRepository.GetByTags(tag, limit, startAfter, cancellationToken);
 
-        public IFluentAction<List<AchievementData>> GetAchievementsByTags(List<string> tags, int limit, string startAfter = "", CancellationToken cancellationToken = default)
+        public IFluentAction<List<AchievementData>> GetAchievementsByTags(List<string> tags, int limit, long startAfter = default, CancellationToken cancellationToken = default)
             => _achievementRepository.GetByTags(tags, limit, startAfter, cancellationToken);
 
         public IFluentAction<List<AchievementData>> GetAchievementsByAppIds(string appId, int limit, string startAfter = "",

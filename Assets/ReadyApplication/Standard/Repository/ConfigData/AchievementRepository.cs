@@ -12,8 +12,8 @@ namespace ReadyApplication.Standard
 		event System.Action CachedAchievementsUpdated;
 		IFluentAction<List<AchievementData>> GetByIds(string id, CancellationToken cancellationToken = default);
 	    IFluentAction<List<AchievementData>> GetByIds(List<string> ids, CancellationToken cancellationToken = default);
-	    IFluentAction<List<AchievementData>> GetByTags(string tag, int limit, string startAfter = "", CancellationToken cancellationToken = default);
-	    IFluentAction<List<AchievementData>> GetByTags(List<string> tags, int limit, string startAfter = "", CancellationToken cancellationToken = default);
+	    IFluentAction<List<AchievementData>> GetByTags(string tag, int limit, long startAfter = default, CancellationToken cancellationToken = default);
+	    IFluentAction<List<AchievementData>> GetByTags(List<string> tags, int limit, long startAfter = default, CancellationToken cancellationToken = default);
 	    IFluentAction<List<AchievementData>> GetByAppIds(string appId, int limit, string startAfter = "", CancellationToken cancellationToken = default);
 	    IFluentAction<List<AchievementData>> GetByAppIds(List<string> appIds, int limit, string startAfter = "", CancellationToken cancellationToken = default);
 	    IFluentAction<List<AchievementData>> GetForThisApp(int limit, string startAfter = "", CancellationToken cancellationToken = default);
@@ -48,11 +48,11 @@ namespace ReadyApplication.Standard
                 .OnComplete(CacheAchievements);
 		}
 
-		public IFluentAction<List<AchievementData>> GetByTags(string tag, int limit, string startAfter = "",
+		public IFluentAction<List<AchievementData>> GetByTags(string tag, int limit, long startAfter = default,
 			CancellationToken cancellationToken = default)
 			=> GetByTags(new List<string> { tag }, limit, startAfter, cancellationToken);
 
-		public IFluentAction<List<AchievementData>> GetByTags(List<string> tags, int limit, string startAfter = "",
+		public IFluentAction<List<AchievementData>> GetByTags(List<string> tags, int limit, long startAfter = default,
             CancellationToken cancellationToken = default)
         {
             string queryHash = RepositoryHelper.GetQueryHash(nameof(GetByTags), nameof(tags), tags, nameof(limit), limit, nameof(startAfter), startAfter);
